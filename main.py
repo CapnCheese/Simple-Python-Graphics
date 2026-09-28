@@ -50,24 +50,30 @@ planePoints = [
     [-50,50,0]
 ]
 
+trianglePoints = [
+    [-50,50,0],
+    [0,-50,0],
+    [50,50,0],
+    [-50,50,0]
+]
+
 #point data, position, color
 objects = [
+    [trianglePoints, [0,0,1000], (155,155,155)],
+
     [planePoints, [0,0,250], (155,155,155)],
-    [planePoints, [100,0,250], (155,155,155)],
+    [planePoints, [100,0,250], (5,155,155)],
     [planePoints, [200,0,250], (155,155,155)],
-    [planePoints, [0,0,500], (155,155,155)],
+    [planePoints, [0,0,500], (155,200,155)],
     [planePoints, [100,0,500], (155,155,155)],
-    [planePoints, [200,0,500], (155,155,155)],
+    [planePoints, [200,0,500], (155,55,155)],
     [planePoints, [0,0,750], (155,155,155)],
-    [planePoints, [100,0,750], (155,155,155)],
+    [planePoints, [100,0,750], (155,155,5)],
     [planePoints, [200,0,750], (155,155,155)]
 ]
 
 def get_FPS():
-    
-        
     fps = int(frame / (time.time() - startTime))
-
     return fps
         
 def onKeyHold(keys):
@@ -190,27 +196,45 @@ def renderObject(objectID):
         
     #opacity = abs(min(100, (min(zValues)-clippingDistance))) if doOpacity else 100
     
-    if len(flatPoints) >= 4 and not (max(xValues) <= 0 or min(xValues) >= screen_size[0]):
+    if not (max(xValues) <= 0 or min(xValues) >= screen_size[0]):
         for i in range(0, len(flatPoints), 4):
 
-            pygame.draw.polygon(
-                screen,
-                color,
-                [
-                (flatPoints[i][0],
-                flatPoints[i][1]),
+            if len(flatPoints) % 4 == 0:
+                pygame.draw.polygon(
+                    screen,
+                    color,
+                    [
+                    (flatPoints[i][0],
+                    flatPoints[i][1]),
 
-                (flatPoints[i + 1][0],
-                flatPoints[i + 1][1]),
+                    (flatPoints[i + 1][0],
+                    flatPoints[i + 1][1]),
 
-                (flatPoints[i + 2][0],
-                flatPoints[i + 2][1]),
+                    (flatPoints[i + 2][0],
+                    flatPoints[i + 2][1]),
 
-                (flatPoints[i + 3][0],
-                flatPoints[i + 3][1])
-                ],
-                width=0
-                )
+                    (flatPoints[i + 3][0],
+                    flatPoints[i + 3][1])
+                    ],
+                    width=0
+                    )
+
+            if len(flatPoints) % 3 == 0:
+                pygame.draw.polygon(
+                    screen,
+                    color,
+                    [
+                    (flatPoints[i][0],
+                    flatPoints[i][1]),
+
+                    (flatPoints[i + 1][0],
+                    flatPoints[i + 1][1]),
+
+                    (flatPoints[i + 2][0],
+                    flatPoints[i + 2][1])
+                    ],
+                    width=0
+                    )
 
 def sortKey(obj):
     return obj[1]
