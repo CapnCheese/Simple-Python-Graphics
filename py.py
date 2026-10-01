@@ -26,7 +26,6 @@ moveSpeed = 10
 turnSpeed = 1
 targetTransform = [0, 0, 0]
 targetRotation = [0, 0, 0]
-
 clippingDistance = 50
 frame = 0
 doOpacity = False
@@ -52,30 +51,19 @@ planePoints = [
     [-50,50,0]
 ]
 
-trianglePoints = [
-    [-50,50,0],
-    [0,-50,0],
-    [50,50,0],
-    [-50,50,0]
-]
-
-#point data, position, color
+#point data, position, color, rotation, scale
 objects = [
-    [trianglePoints, (0,0,1000), (155,155,155), (0,0,0), (1,1,1)],
-
-    [planePoints, (0,0,250), (155,0,0), (0,0,0), (1,1,1)],
-    
-    [planePoints, (100,0,250), (0,155,0), (0,0,0), (1,1,1)],
-    [planePoints, (200,0,250), (0,0,155), (0,0,0), (1,1,1)],
-    [planePoints, (0,0,500), (65,50,0), (0,0,0), (1,1,1)],
-    [planePoints, (100,0,500), (50,175,80), (0,0,0), (1,1,1)],
-    [planePoints, (200,0,500), (0,100,200), (0,0,0), (1,1,1)],
-    [planePoints, (0,0,750), (155,155,155), (0,0,0), (1,1,1)],
-    [planePoints, (100,0,750), (155,155,155), (0,0,0), (1,1,1)],
-    [planePoints, (200,0,750), (155,155,155), (0,0,0), (1,1,1)],
+    [planePoints, [0,0,250], (155,0,0), (0,90,0), (1,1,1)],
+    [planePoints, [100,0,250], (0,155,0), (0,0,0), (1,1,1)],
+    [planePoints, [200,0,250], (0,0,155), (0,0,0), (1,1,1)],
+    [planePoints, [0,0,500], (65,50,0), (0,0,0), (1,1,1)],
+    [planePoints, [100,0,500], (50,175,80), (0,0,0), (1,1,1)],
+    [planePoints, [200,0,500], (0,100,200), (0,0,0), (1,1,1)],
+    [planePoints, [0,0,750], (155,155,155), (0,0,0), (1,1,1)],
+    [planePoints, [100,0,750], (155,155,155), (0,0,0), (1,1,1)],
+    [planePoints, [200,0,750], (155,155,155), (0,0,0), (1,1,1)],
      
     [planePoints, [0,-50,0], (155,155,155), (90,0,0), (5,5,1)]
-
 ]
 
 def get_FPS():
@@ -112,9 +100,9 @@ def onKeyHold(keys):
 def rotatePoints(points, rotation):
     
     rotatedPoints = []
-    #rx = rotation[0] * (math.pi / 180)
+    rx = rotation[0] * (math.pi / 180)
     ry = rotation[1] * (math.pi / 180)
-    #rz = rotation[2] * (math.pi / 180)
+    rz = rotation[2] * (math.pi / 180)
     
     for point in points:
         x = point[0]
@@ -199,7 +187,6 @@ def renderObject(objectID):
     #rotates the object around its own axis
     locallyRotatedPoints = rotatePoints(points, objectRotation)
 
-    #scales object
     scaledPoints = scalePoints(locallyRotatedPoints, scale)
 
     #transform points to desired position
@@ -215,13 +202,16 @@ def renderObject(objectID):
     #project onto 2D screen
     flatPoints = projectPoints(rotatedPoints, focalLength)
     
+    if len(flatPoints) < 4:
+        return
+    
     zValues = []
     for point in rotatedPoints:
         zValues.append(point[2])
     
     
     #populate debth buffer with current object's id and max z value
-    depthBuffer[objectID] = ([objectID, max(zValues)])
+    depthBuffer[objectID] = ([objectID, min(zValues)])
         
         
     xValues = []
@@ -235,54 +225,32 @@ def renderObject(objectID):
     if len(flatPoints) >= 4 and not (max(xValues) <= 0 or min(xValues) >= screen_size[0]):
         for i in range(0, len(flatPoints), 4):
 
-            #draw square
-            if len(flatPoints) % 4 == 0:
-                pygame.draw.polygon(
-                    screen,
-                    color,
-                    [
-                    (flatPoints[i][0],
-                    flatPoints[i][1]),
+            pygame.draw.polygon(
+                screen,
+                color,
+                [
+                (flatPoints[i][0],
+                flatPoints[i][1]),
 
-                    (flatPoints[i + 1][0],
-                    flatPoints[i + 1][1]),
+                (flatPoints[i + 1][0],
+                flatPoints[i + 1][1]),
 
-                    (flatPoints[i + 2][0],
-                    flatPoints[i + 2][1]),
+                (flatPoints[i + 2][0],
+                flatPoints[i + 2][1]),
 
-                    (flatPoints[i + 3][0],
-                    flatPoints[i + 3][1])
-                    ],
-                    width=0
-                    )
-
-            #draw triangle
-            if len(flatPoints) % 3 == 0:
-                pygame.draw.polygon(
-                    screen,
-                    color,
-                    [
-                    (flatPoints[i][0],
-                    flatPoints[i][1]),
-
-                    (flatPoints[i + 1][0],
-                    flatPoints[i + 1][1]),
-
-                    (flatPoints[i + 2][0],
-                    flatPoints[i + 2][1])
-                    ],
-                    width=0
-                    )
+                (flatPoints[i + 3][0],
+                flatPoints[i + 3][1])
+                ],
+                width=0
+                )
 
 def onStep():
     global frame
     global drawOrder
 
-    #clear screen
-    screen.fill((30, 30, 30)) 
-
     if frame == 0:
         initialize()
+
 
     #debug information
     screen.blit(system_font.render(f"FPS: {get_FPS()}", True, (255, 255, 255)), (20, 20))
@@ -294,17 +262,22 @@ def onStep():
     
     drawOrder = list(depthBuffer)
     
-    drawOrder.sort(key = lambda obj: obj[1], reverse=True)
+    drawOrder.sort(key=lambda obj: obj[1], reverse=True)
 
     for obj in drawOrder:
         renderObject(obj[0])
     
 def initialize():
+    
     for i in range(len(objects)):
         depthBuffer.append([i, 100])
         renderObject(i)
     
 while running:
+
+
+    screen.fill((30, 30, 30)) #clear screen
+
     onStep() #main loop
 
     for event in pygame.event.get():
