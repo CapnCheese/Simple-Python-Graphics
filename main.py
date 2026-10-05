@@ -27,7 +27,7 @@ turnSpeed = 1
 targetTransform = [0, 0, 0]
 targetRotation = [0, 0, 0]
 
-clippingDistance = 1
+clippingDistance = 0.01
 frame = 0
 doOpacity = False
 startTime = time.time()
@@ -173,14 +173,40 @@ def scalePoints(points, scale):
         
     return scaledPoints
 
+def clipPoints(points, near):
+    clipped = []
+    previous = points[-1]
+    previous_inside = previous[2] >= near
+
+    for current in points:
+        current_inside = current[2] >= near
+
+        if current_inside != previous_inside:
+            dx = current[0] - previous[0]
+            dy = current[1] - previous[1]
+            dz = current[2] - previous[2]
+            horizontal_distance = math.sqrt(dx**2 + dy**2)
+            slope_3d = dz/horizontal_distance
+            t = (near - previous[2]) / (current[2] - previous[2])
+            intersection = [
+                previous[i] + t * (current[i] - previous[i])
+                for i in range(3)
+            ]
+            print(intersection)
+            clipped.append(intersection)
+
+        if current_inside:
+            clipped.append(current)
+
+        previous = current
+        previous_inside = current_inside
+    return clipped
+
 def projectPoints(points):
     
     flatPoints = []
     for point in points:
         x, y, z = point
-
-        if z <= clippingDistance:
-            return
 
         fx = focalLength * (x / z) + (screen_size[0] / 2)
         fy = focalLength * (y / z) + (screen_size[1] / 2)
@@ -211,9 +237,12 @@ def renderObject(objectID):
 
     #rotate around camera
     rotatedPoints = rotatePoints(transformedPoints, targetRotation)
-    
+
+    #clip points near the camera
+    clippedPoints = clipPoints(rotatedPoints, clippingDistance)
+
     #project onto 2D screen
-    flatPoints = projectPoints(rotatedPoints)
+    flatPoints = projectPoints(clippedPoints)
 
     if flatPoints is None:
         return
@@ -238,7 +267,7 @@ def renderObject(objectID):
     #populate debth buffer with current object's id and max z value
     depthBuffer[objectID] = ([objectID, sum(zValues)/len(zValues)])
     
-    if not max(xValues) <= -100 and not min(xValues) >= screen_size[0] + 100:
+    if not max(xValues) <= 0 and not min(xValues) >= screen_size[0]:
         for i in range(0, len(flatPoints), 4):
 
             #draw square
