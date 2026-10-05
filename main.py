@@ -27,7 +27,7 @@ turnSpeed = 1
 targetTransform = [0, 0, 0]
 targetRotation = [0, 0, 0]
 
-clippingDistance = 50
+clippingDistance = 1
 frame = 0
 doOpacity = False
 startTime = time.time()
@@ -61,7 +61,9 @@ trianglePoints = [
 
 #point data, position, color
 objects = [
-    [trianglePoints, (0,0,1000), (155,155,155), (0,0,0), (1,1,1)],
+    [trianglePoints, (0,0,1000), (155,155,155), (45,0,0), (1,1,1)],
+    [trianglePoints, (100,0,1000), (155,155,155), (0,45,0), (1,1,1)],
+    [trianglePoints, (200,0,1000), (155,155,155), (0,0,45), (1,1,1)],
 
     [planePoints, (0,0,250), (155,0,0), (0,0,0), (1,1,1)],
     
@@ -74,7 +76,7 @@ objects = [
     [planePoints, (100,0,750), (155,155,155), (0,0,0), (1,1,1)],
     [planePoints, (200,0,750), (155,155,155), (0,0,0), (1,1,1)],
      
-    [planePoints, [0,-50,0], (155,155,155), (90,0,0), (5,5,1)]
+    [planePoints, [0,-50,0], (155,155,155), (45,0,0), (5,5,1)]
 
 ]
 
@@ -112,36 +114,36 @@ def onKeyHold(keys):
 def rotatePoints(points, rotation):
     
     rotatedPoints = []
-    #rx = rotation[0] * (math.pi / 180)
+    rx = rotation[0] * (math.pi / 180)
     ry = rotation[1] * (math.pi / 180)
-    #rz = rotation[2] * (math.pi / 180)
+    rz = rotation[2] * (math.pi / 180)
     
-    for point in points:
-        x = point[0]
-        y = point[1]
-        z = point[2]
+    for x, y, z in points:
+        x1 = x
+        y1 = y * math.cos(rx) - z * math.sin(rx)
+        z1 = y * math.sin(rx) + z * math.cos(rx)
+
+        x2 = z1 * math.sin(ry) + x1 * math.cos(ry)
+        y2 = y1
+        z2 = z1 * math.cos(ry) - x1 * math.sin(ry)
+
+
+
+        x3 = x2 * math.cos(rz) - y2 * math.sin(rz)
+        y3 = x2 * math.sin(rz) + y2 * math.cos(rz)
+        z3 = z2
         
-        rotatedPoints.append(
-            [
-                z * math.sin(ry) + x * math.cos(ry),
-                y,
-                z * math.cos(ry) - x * math.sin(ry)
-            ]
-        )
+        rotatedPoints.append([x3, y3, z3])
         
     return rotatedPoints
 
 def transformPoints(points, transform):
     
     transformedPoints = []
-    tx = transform[0]
-    ty = transform[1]
-    tz = transform[2]
+    tx, ty, tz = transform
     
     for point in points:
-        x = point[0]
-        y = point[1]
-        z = point[2]
+        x, y, z = point
         
         transformedPoints.append(
             [
@@ -156,15 +158,11 @@ def transformPoints(points, transform):
 def scalePoints(points, scale):
     
     scaledPoints = []
-    sx = scale[0]
-    sy = scale[1]
-    sz = scale[2]
+    sx, sy, sz = scale
     
     for point in points:
-        x = point[0]
-        y = point[1]
-        z = point[2]
-        
+        x, y, z = point
+
         scaledPoints.append(
             [
                 x * sx,
@@ -175,17 +173,19 @@ def scalePoints(points, scale):
         
     return scaledPoints
 
-def projectPoints(points, focal):
+def projectPoints(points):
     
     flatPoints = []
     for point in points:
-        if point[2] < 1:
-            continue
-        
-        x = point[0]
-        y = point[1]
-        z = point[2]
-        flatPoints.append([focal * (x / z) + (screen_size[0] / 2), focal * (y / z) + (screen_size[1] / 2)])
+        x, y, z = point
+
+        if z <= clippingDistance:
+            return
+
+        fx = focalLength * (x / z) + (screen_size[0] / 2)
+        fy = focalLength * (y / z) + (screen_size[1] / 2)
+
+        flatPoints.append([fx, fy])
     
     return flatPoints
     
@@ -196,14 +196,14 @@ def renderObject(objectID):
     objectRotation = objects[objectID][3]
     scale = objects[objectID][4]
 
-    #rotates the object around its own axis
-    locallyRotatedPoints = rotatePoints(points, objectRotation)
-
     #scales object
-    scaledPoints = scalePoints(locallyRotatedPoints, scale)
+    scaledPoints = scalePoints(points, scale)
+    
+    #rotates the object around its own axis
+    locallyRotatedPoints = rotatePoints(scaledPoints, objectRotation)
 
     #transform points to desired position
-    transformedPoints = transformPoints(scaledPoints, [
+    transformedPoints = transformPoints(locallyRotatedPoints, [
         targetTransform[0] + position[0],
         targetTransform[1] + position[1],
         targetTransform[2] + position[2]
@@ -213,16 +213,10 @@ def renderObject(objectID):
     rotatedPoints = rotatePoints(transformedPoints, targetRotation)
     
     #project onto 2D screen
-    flatPoints = projectPoints(rotatedPoints, focalLength)
-    
-    zValues = []
-    for point in rotatedPoints:
-        zValues.append(point[2])
-    
-    
-    #populate debth buffer with current object's id and max z value
-    depthBuffer[objectID] = ([objectID, max(zValues)])
-        
+    flatPoints = projectPoints(rotatedPoints)
+
+    if flatPoints is None:
+        return
         
     xValues = []
     yValues = []
@@ -232,7 +226,19 @@ def renderObject(objectID):
         
     #opacity = abs(min(100, (min(zValues)-clippingDistance))) if doOpacity else 100
     
-    if len(flatPoints) >= 4 and not (max(xValues) <= 0 or min(xValues) >= screen_size[0]):
+    if not len(xValues) > 0:
+        return
+
+    zValues = []
+
+    for point in rotatedPoints:
+        zValues.append(point[2])
+    
+    
+    #populate debth buffer with current object's id and max z value
+    depthBuffer[objectID] = ([objectID, sum(zValues)/len(zValues)])
+    
+    if not max(xValues) <= -100 and not min(xValues) >= screen_size[0] + 100:
         for i in range(0, len(flatPoints), 4):
 
             #draw square
